@@ -39,7 +39,7 @@ public:
 	void IsQualified() const;
 	list < transfer_accounts_model> *front;
 	list<transfer_accounts_model> *next;
-	
+	bool *Read;
 	transfer_accounts_model Copy() const;
 
 	bool operator == (transfer_accounts_model box);
@@ -64,12 +64,14 @@ bool transfer_accounts_model::operator == (transfer_accounts_model box)
 }
 
 transfer_accounts_model Establish(int form, int to) {
-	transfer_accounts_model model;
+	transfer_accounts_model *model = new transfer_accounts_model;
 	//model.Original = form;
-	model.Form = form;
-	model.To = to;
-	model.Lenght = 1;
-	return model;
+	model->Form = form;
+	model->To = to;
+	model->Lenght = 1;
+	bool a = false;
+	model->Read = &a;
+	return *model;
 }
 
 transfer_accounts_model transfer_accounts_model::Copy() const
@@ -122,6 +124,8 @@ struct qualified_result {
 	vector<int> list;
 	string get_text();
 	string number_text = "";
+	vector<bool> ReadResult;
+	bool is_qualified();
 };
 //合格的结果集
 list<qualified_result> qualifiedList;
@@ -145,7 +149,7 @@ bool IsExistence(qualified_result *result)
 void preTraversalFront(transfer_accounts_model* root, 
 	transfer_accounts_model* original,qualified_result *result)
 {
-	if(root ==NULL || result->deep == 5)
+	if(root ==NULL || result->deep == 7)
 		return;
 	if (result->deep > 0)
 		result->text = root->GetForm()+","+ result->text;
@@ -153,23 +157,24 @@ void preTraversalFront(transfer_accounts_model* root,
 	{
 		result->text =  root->GetForm();
 	}
+	result->list.push_back(root->Form);
 	result->deep++;
 	//访问跟节点
 
 		for (auto itr = root->front->begin(); itr != root->front->end(); ++itr)
 		{
-			if(original->To == itr->Form)
+			if (original->To == itr->Form)
 			{
-				if (result->deep > 2 && result->deep < 7)
+				if (result->deep > 2 && result->deep < 8)
 				{
 					//result->isOk = true;
 					//result->text = root->GetForm() + "," + result->text;
-					qualifiedList.push_back(*result);
+					if (!IsExistence(result))
+						qualifiedList.push_back(*result);
 				}
 				break;
 			}
-			transfer_accounts_model model = *itr;
-			preTraversalFront(&model, original,result);
+			preTraversalFront(&*itr, original,result);
 		}
 }
 
@@ -182,7 +187,7 @@ void preTraversalTo(transfer_accounts_model* root,
 	if (result->deep > 0)
 	{
 		result->text += "," + root->GetTo();
-		result->list.push_back(root->To);
+		result->list.push_back(root->To);	
 	}
 	else
 	{
@@ -206,8 +211,7 @@ void preTraversalTo(transfer_accounts_model* root,
 			}
 			break;
 		}
-		transfer_accounts_model model = *itr;
-		preTraversalTo(&model, original, result);
+		preTraversalTo(&*itr, original, result);
 	}
 }
 
@@ -247,11 +251,40 @@ void AddToNode(transfer_accounts_model *model)
 	else
 	nodeTo[model->To].push_back(*model);
 }
+int sum = 0, Count = 0;
+void dfs(transfer_accounts_model *model, 
+	transfer_accounts_model *original ,qualified_result result)
+{
+	//cout << model->Form << " ";
+	sum++;//每访问一个节点sum就++
+	result.ReadResult.push_back(model->ClosedLoop);
+	model->ClosedLoop = true;
+	result.text += model->GetForm();
+	result.deep++;
+	if (original->Form == model->To)//找到环
+	{
+		if (result.is_qualified())
+		{
+			qualifiedList.push_back(result);
+		}
+		return;
+	}
+	//超过最大深度
+	if(result.deep>7)
+		return;
+	//if (sum == Count)
+	//	return;//所有的顶点已经访问过直接退出
+	for (auto itr = model->next->begin(); itr != model->next->end(); ++itr)
+	{
+		result.text += ",";//后面还有假都好分隔
+		dfs(&*itr, original, result);
+	}
+}
 
 int main()
 {
-	ifstream fin("/data/test_data.txt", std::ios::in);
-	//ifstream fin("D:\\vs2015\\HuaWei\\x64\\Debug\\test_data.txt", std::ios::in);
+	//ifstream fin("/data/test_data.txt", std::ios::in);
+	ifstream fin("D:\\MyGit\\huowei.git\\trunk\\HuaWei\\x64\\Debug\\test_data.txt", std::ios::in);
 	char line[1024] = { 0 };
 	string lineText = "";
 	while (fin.getline(line, sizeof(line)))
@@ -260,62 +293,66 @@ int main()
 		vector<int> sv;
 		word >> lineText;
 		split(lineText, sv, ',');
-		auto model = Establish(sv[0], sv[1]);
-		transfer_accounts_model *modelt = &model;
+		transfer_accounts_model modelt = Establish(sv[0], sv[1]);
 		//在节点中查找谁转给了当前转账人
-		if (nodeTo.find(model.Form) != nodeTo.end())
+		if (nodeTo.find(modelt.Form) != nodeTo.end())
 		{
-			list<transfer_accounts_model> *moldes = &nodeTo[model.Form];
+			list<transfer_accounts_model> *moldes = &nodeTo[modelt.Form];
 			list<transfer_accounts_model>::iterator itr;
 			for (itr = moldes->begin(); itr != moldes->end(); ++itr)
 			{
-				itr->AddTo(modelt->To, modelt);
+				itr->AddTo(modelt.To, &modelt);
 			}
 		}
 		//在节点中查找谁转给了当前转账人
-		if (nodeForm.find(model.To) != nodeForm.end())
+		if (nodeForm.find(modelt.To) != nodeForm.end())
 		{
-			list<transfer_accounts_model> *moldes = &nodeForm[model.To];
+			list<transfer_accounts_model> *moldes = &nodeForm[modelt.To];
 			list<transfer_accounts_model>::iterator itr;
 			for (itr = moldes->begin(); itr != moldes->end(); ++itr)
 			{
-				itr->AddFrom(model.Form, modelt);
+				itr->AddFrom(modelt.Form, &modelt);
 			}
 		}
 
-		AddToNode(&model);
-
+		AddToNode(&modelt);
+		Count++;
 	}
 	fin.clear();
 	fin.close();
+	Count = 0;
 	//第二轮
 	std::map<int, list<transfer_accounts_model>>::iterator it;
 	ofstream ofs;
 	// 3 指定路径和打开方式 
-	//ofs.open("D:\\vs2015\\HuaWei\\x64\\Debug\\text111111.txt", ios::out);
-	ofs.open("/projects/student/result.txt", ios::out);
+	//ofs.open("D:\\MyGit\\huowei.git\\trunk\\HuaWei\\x64\\Debug\\text111111.txt", ios::out);
+	//ofs.open("/projects/student/result.txt", ios::out);
+	
 	for (it = nodeForm.begin(); it != nodeForm.end(); ++it) {
 		for (list<transfer_accounts_model>::iterator itr = it->second.begin(); itr != it->second.end(); ++itr)
 		{
 			//向前查找
-			//qualified_result result1;
-			//preTraversalFront(&model,& model,&result1);
+			/*qualified_result result1;
+			preTraversalFront(&*itr, &*itr, &result1);*/
 			//向后查找
+			/*qualified_result result2;
+			preTraversalTo(&*itr, &*itr, &result2);*/
 			qualified_result result2;
-			preTraversalTo(&*itr, &*itr, &result2);
+			dfs(&*itr, &*itr, result2);
 		}
 	}
-	// 4 写内容
-	ofs << qualifiedList.size() << endl;
+	cout << "循环数: "<<sum << endl;
+	//// 4 写内容
+	//ofs << qualifiedList.size() << endl;
 	cout << qualifiedList.size() << '\n';
 	for (list<qualified_result>::iterator itr2 = qualifiedList.begin(); itr2 != qualifiedList.end(); itr2++)
 	{
-		ofs << itr2->text << endl;
-		//cout << itr2->text << '\n';
+		//ofs << itr2->text << endl;
+		cout << itr2->text << '\n';
 	}
 
-	// 5 关闭文件
-	ofs.close();
+	//// 5 关闭文件
+	//ofs.close();
 	//int a;
 	//cin >> a;
 	return 0;
@@ -345,4 +382,20 @@ string qualified_result::get_text()
 		number_text += to_string(*itr);
 	}
 	return number_text;
+}
+
+bool qualified_result::is_qualified()
+{
+	if (ReadResult.size() < 3)
+		return false;
+	bool result = false;
+	for (auto itr = ReadResult.begin(); itr!= ReadResult.end();itr++)
+	{
+		if(!*itr)//包含未读过的数据
+		{
+			result = true;
+			break;
+		}
+	}
+	return result;
 }
