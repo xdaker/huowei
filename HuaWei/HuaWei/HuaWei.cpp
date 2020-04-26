@@ -37,9 +37,8 @@ public:
 	string GetForm() const;
 	string GetTo() const;
 	void IsQualified() const;
-	list < transfer_accounts_model> *front;
-	list<transfer_accounts_model> *next;
-	bool *Read;
+	list < transfer_accounts_model*> *front;
+	list<transfer_accounts_model*> *next;
 	transfer_accounts_model Copy() const;
 
 	bool operator == (transfer_accounts_model box);
@@ -49,8 +48,8 @@ private:
 
 transfer_accounts_model::transfer_accounts_model()
 {
-	front = new list<transfer_accounts_model>;
-	next = new list<transfer_accounts_model>;
+	front = new list<transfer_accounts_model*>;
+	next = new list<transfer_accounts_model*>;
 };
 
 transfer_accounts_model::~transfer_accounts_model()
@@ -69,8 +68,6 @@ transfer_accounts_model Establish(int form, int to) {
 	model->Form = form;
 	model->To = to;
 	model->Lenght = 1;
-	bool a = false;
-	model->Read = &a;
 	return *model;
 }
 
@@ -88,16 +85,16 @@ transfer_accounts_model transfer_accounts_model::Copy() const
 
 void transfer_accounts_model::AddTo(int to, transfer_accounts_model *model)
 {
-	model->front->push_back(*this);
-	next->push_back(*model);
+	model->front->push_back(&*this);
+	next->push_back(&*model);
 	//Lenght++;
 	return;
 }
 
 void transfer_accounts_model::AddFrom(int form, transfer_accounts_model *model)
 {
-	model->next->push_back(*this);
-	this->front->push_back(*model);
+	model->next->push_back(&*this);
+	this->front->push_back(&*model);
 	//Lenght++;
 	return;
 }
@@ -112,9 +109,9 @@ string transfer_accounts_model::GetTo() const
 	return to_string(To);
 }
 //发起转账人为键值
-map<int, list<transfer_accounts_model>> nodeForm;
+map<int, list<transfer_accounts_model*>> nodeForm;
 //收款人为键值
-map<int, list<transfer_accounts_model>> nodeTo;
+map<int, list<transfer_accounts_model*>> nodeTo;
 
 
 struct qualified_result {
@@ -163,7 +160,7 @@ void preTraversalFront(transfer_accounts_model* root,
 
 		for (auto itr = root->front->begin(); itr != root->front->end(); ++itr)
 		{
-			if (original->To == itr->Form)
+			if (original->To == (*itr)->Form)
 			{
 				if (result->deep > 2 && result->deep < 8)
 				{
@@ -174,7 +171,7 @@ void preTraversalFront(transfer_accounts_model* root,
 				}
 				break;
 			}
-			preTraversalFront(&*itr, original,result);
+			preTraversalFront(&(**itr), original,result);
 		}
 }
 
@@ -200,7 +197,7 @@ void preTraversalTo(transfer_accounts_model* root,
 	//访问跟节点
 	for (auto itr = root->next->begin(); itr != root->next->end(); ++itr)
 	{
-		if (original->Form == itr->To)
+		if (original->Form == (*itr)->To)
 		{
 			if (result->deep > 1 && result->deep < 7)
 			{
@@ -211,20 +208,8 @@ void preTraversalTo(transfer_accounts_model* root,
 			}
 			break;
 		}
-		preTraversalTo(&*itr, original, result);
+		preTraversalTo(&**itr, original, result);
 	}
-}
-
-void transfer_accounts_model::IsQualified() const
-{
-	//向前搜索，包不包含自己
-	list<transfer_accounts_model> *models= this->front;
-	for (auto itr = models->begin(); itr != models->end(); ++itr)
-	{
-		//itr->AddTo(model.To, model);
-	}
-	//向后收锁，包不包含自己
-	return ;
 }
 
 void AddToNode(transfer_accounts_model *model)
@@ -232,52 +217,52 @@ void AddToNode(transfer_accounts_model *model)
 	if(nodeForm.find(model->Form) == nodeForm.end())
 	{
 		//找不到
-		nodeForm.insert(std::pair<int, list<transfer_accounts_model>>
-			(model->Form, list<transfer_accounts_model>{
-			 *model
+		nodeForm.insert(std::pair<int, list<transfer_accounts_model*>>
+			(model->Form, list<transfer_accounts_model*>{
+			 model
 			}));
 	}
 	else
-	nodeForm[model->Form].push_back(*model);
+	nodeForm[model->Form].push_back(model);
 
 	if (nodeTo.find(model->Form) == nodeTo.end())
 	{
 		//找不到
-		nodeTo.insert(std::pair<int, list<transfer_accounts_model>>
-			(model->To, list<transfer_accounts_model>{
-			 *model
+		nodeTo.insert(std::pair<int, list<transfer_accounts_model*>>
+			(model->To, list<transfer_accounts_model*>{
+			 model
 				}));
 	}
 	else
-	nodeTo[model->To].push_back(*model);
+	nodeTo[model->To].push_back(model);
 }
 int sum = 0, Count = 0;
 void dfs(transfer_accounts_model *model, 
 	transfer_accounts_model *original ,qualified_result result)
 {
-	//cout << model->Form << " ";
+	cout << model->Form << " ";
 	sum++;//每访问一个节点sum就++
-	result.ReadResult.push_back(model->ClosedLoop);
-	model->ClosedLoop = true;
-	result.text += model->GetForm();
-	result.deep++;
-	if (original->Form == model->To)//找到环
-	{
-		if (result.is_qualified())
-		{
-			qualifiedList.push_back(result);
-		}
-		return;
-	}
+	//result.ReadResult.push_back(model->ClosedLoop);
+	//model->ClosedLoop = true;
+	//result.text += model->GetForm();
+	//result.deep++;
+	//if (original->Form == model->To)//找到环
+	//{
+	//	if (result.is_qualified())
+	//	{
+	//		qualifiedList.push_back(result);
+	//	}
+	//	return;
+	//}
 	//超过最大深度
-	if(result.deep>7)
-		return;
-	//if (sum == Count)
-	//	return;//所有的顶点已经访问过直接退出
+	/*if(result.deep>7)
+		return;*/
+	if (sum == Count)
+		return;//所有的顶点已经访问过直接退出
 	for (auto itr = model->next->begin(); itr != model->next->end(); ++itr)
 	{
 		result.text += ",";//后面还有假都好分隔
-		dfs(&*itr, original, result);
+		dfs(&**itr, original, result);
 	}
 }
 
@@ -297,21 +282,19 @@ int main()
 		//在节点中查找谁转给了当前转账人
 		if (nodeTo.find(modelt.Form) != nodeTo.end())
 		{
-			list<transfer_accounts_model> *moldes = &nodeTo[modelt.Form];
-			list<transfer_accounts_model>::iterator itr;
-			for (itr = moldes->begin(); itr != moldes->end(); ++itr)
+			list<transfer_accounts_model*> moldes = nodeTo[modelt.Form];
+			for (auto itr = moldes.begin(); itr != moldes.end(); ++itr)
 			{
-				itr->AddTo(modelt.To, &modelt);
+				(*itr)->AddTo(modelt.To, &modelt);
 			}
 		}
 		//在节点中查找谁转给了当前转账人
 		if (nodeForm.find(modelt.To) != nodeForm.end())
 		{
-			list<transfer_accounts_model> *moldes = &nodeForm[modelt.To];
-			list<transfer_accounts_model>::iterator itr;
-			for (itr = moldes->begin(); itr != moldes->end(); ++itr)
+			list<transfer_accounts_model*> moldes = nodeForm[modelt.To];
+			for (auto itr = moldes.begin(); itr != moldes.end(); ++itr)
 			{
-				itr->AddFrom(modelt.Form, &modelt);
+				(*itr)->AddFrom(modelt.Form, &modelt);
 			}
 		}
 
@@ -322,14 +305,14 @@ int main()
 	fin.close();
 	Count = 0;
 	//第二轮
-	std::map<int, list<transfer_accounts_model>>::iterator it;
+	std::map<int, list<transfer_accounts_model*>>::iterator it;
 	ofstream ofs;
 	// 3 指定路径和打开方式 
 	//ofs.open("D:\\MyGit\\huowei.git\\trunk\\HuaWei\\x64\\Debug\\text111111.txt", ios::out);
 	//ofs.open("/projects/student/result.txt", ios::out);
 	
 	for (it = nodeForm.begin(); it != nodeForm.end(); ++it) {
-		for (list<transfer_accounts_model>::iterator itr = it->second.begin(); itr != it->second.end(); ++itr)
+		for (auto itr = (*it).second.begin(); itr != (*it).second.end(); ++itr)
 		{
 			//向前查找
 			/*qualified_result result1;
@@ -338,7 +321,7 @@ int main()
 			/*qualified_result result2;
 			preTraversalTo(&*itr, &*itr, &result2);*/
 			qualified_result result2;
-			dfs(&*itr, &*itr, result2);
+			dfs(&**itr, &**itr, result2);
 		}
 	}
 	cout << "循环数: "<<sum << endl;
@@ -355,6 +338,7 @@ int main()
 	//ofs.close();
 	//int a;
 	//cin >> a;
+	exit(0);
 	return 0;
 }
 
